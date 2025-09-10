@@ -4,6 +4,8 @@ from datetime import datetime
 from dotenv import load_dotenv
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
+import openpyxl
+import pandas
 
 load_dotenv()   # This loads the env variables 
 BOT_TOKEN = os.environ["SLACK_BOT_TOKEN"]   # API key for bot
@@ -71,6 +73,28 @@ def download_files(file_url : str, save_path : str):  # url_private_download fro
     req.raise_for_status()
     with open(save_path, "wb") as f:
         f.write(req.content)
+
+def upload_collection_excel_local (info: dict):
+    df = pd.DataFrame(data=info, index=[0])
+
+    excel_path = os.environ["EXCEL_PATH"]
+    if not os.path.exists(excel_path):
+
+        with pd.ExcelWriter(excel_path, mode='w', engine='openpyxl') as writer:
+            pd.DataFrame().to_excel(writer)
+
+    with pd.ExcelWriter(excel_path, mode='a', engine='openpyxl', if_sheet_exists='overlay') as writer:
+        df.to_excel(writer, sheet_name='Sheet1', startrow=writer.sheets['Sheet1'].max_row, index=False, header=False)
+
+# def collection_excel_local (info):
+#     excel_path = os.environ["EXCEL_PATH"]
+#     if not os.path.exists(excel_path):
+
+#         with pd.ExcelWriter(excel_path, mode='w', engine='openpyxl') as writer:
+#             pd.DataFrame().to_excel(writer)
+
+#     with pd.ExcelWriter(excel_path, mode='a', engine='openpyxl', if_sheet_exists='overlay') as writer:
+#         info.to_excel(writer, sheet_name='Sheet1', startrow=writer.sheets['Sheet1'].max_row, index=False, header=False)
 
 def channel_history(chan_id : str):
     try: 
@@ -142,6 +166,7 @@ def channel_history(chan_id : str):
         download_files(url, downloaded_path)
 
         invoice_num, new_path = change_file_name(downloaded_path, DOWNLOAD_DIR, make_invoice)
+        
 
         info = {
             "Download_Date": datetime.fromtimestamp(float(m.get("ts"))).strftime("%Y-%m-%d"),
@@ -158,10 +183,12 @@ def channel_history(chan_id : str):
         with open(".last_ts.json", "w") as f:
             json.dump({"last_ts": newest_ts},f)
 
-        print(info)
-        
+        upload_collection_excel_local(row)
+
+
     # rows will be the access point to the dataframe     
     print(rows)
+
 
 if __name__ == "__main__":
     channel_history(CHANNEL_ID)

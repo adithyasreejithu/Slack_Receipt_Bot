@@ -1,5 +1,6 @@
 import os, pathlib
 import cv2
+import re
 import numpy as np
 import pytesseract
 from dotenv import load_dotenv
@@ -16,43 +17,49 @@ def gather_picture_files(dir: pathlib.Path):
 
     return receipt_list
 
+#dataclass
 def process_receipt(receipt, config_setting):
 
     def gray_scale (img):
         return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
+    def extract_text(text: str):
+        purchase_Date = ""
+        supplier = ""
+        cost = ""
 
+        date_pattern_1 = r"\d{2}-[A-Z]{3}-\d{4}"
+
+
+        for i, line in enumerate(text.splitlines()):  
+            if i == 0:
+                supplier = line
+            elif "Total" in line:
+                cost = line
+        
+            match = re.search(date_pattern_1, line, re.IGNORECASE)
+
+            if match:
+                purchase_Date = match.group(0)  # full matched string
+                break
+
+
+        print(f"Supplier: {supplier} \nTotal: {cost} \nPurchase_date: {purchase_Date}")
+        return [purchase_Date, supplier, cost]
+    
     img = cv2.imread(receipt)
     str_receipt = str(receipt)
     gray_img = gray_scale(img)
 
+    basic_text = pytesseract.image_to_string(gray_img ,config=config_setting)
+
     file_name = str_receipt.split("\\")[1]
     print(file_name)
 
-    # text = pytesseract.image_to_string(img,config=config_setting)
-    # print(text)
-    # print(len(text))
+    return extract_text(basic_text)
 
-    # print("----------------")
-
-    # text2 = pytesseract.image_to_string(gray_img,config=config_setting)
-    # print(text2)
-    # print(len(text2))
-    import difflib
-
-    # Texts from pytesseract OCR
-    text = pytesseract.image_to_string(img, config=config_setting)
-    text2 = pytesseract.image_to_string(gray_img, config=config_setting)
-
-    # Print the actual outputs
-  
-
-    # OPTIONAL: If you want side-by-side comparison with some formatting for easier reading:
-    print("\nSide-by-Side Comparison:")
-    print(f"{'Original':<60} {'Grayscale'}")
-    for line1, line2 in zip(text.splitlines(), text2.splitlines()):
-        print(f"{line1:<60} {line2}")
-
+    
+   
 
 if __name__ == "__main__":
     load_dotenv()
@@ -60,9 +67,18 @@ if __name__ == "__main__":
     download_dir = pathlib.Path(download_loc)
 
     receipts = gather_picture_files(download_dir)
+    
+    receipt_text = {}
 
     for receipt in receipts:
-        process_receipt(receipt, CONFIG1)
+        output = process_receipt(receipt, CONFIG1)
+        receipt_text[receipt] = {
+            "Purchase_Date": output[0],
+            "Supplier": output[1],
+            "Cost": output[2]
+        }
+
+
 
 
 

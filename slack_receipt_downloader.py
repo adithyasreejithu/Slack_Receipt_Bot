@@ -15,6 +15,7 @@ download_loc = os.environ["DOWNLOAD_LOC"]
 client = WebClient(token=BOT_TOKEN)
 DOWNLOAD_DIR = pathlib.Path(download_loc)
 DOWNLOAD_DIR.mkdir(exist_ok=True)
+COLUMNS = ["Download_Date", "Purchase_Name"," Purchase_Date","Description", "Supplier", "Cost", "Message", "Purchaser","Receipt_Number", "Reimbursed", "Error_Flag"]
     
 # Call function to map users ID to name 
 def create_user_map() -> dict[str, str]: 
@@ -78,23 +79,36 @@ def upload_collection_excel_local (info: dict):
     df = pd.DataFrame(data=info, index=[0])
 
     excel_path = os.environ["EXCEL_PATH"]
-    if not os.path.exists(excel_path):
 
+    if not os.path.exists(excel_path):
         with pd.ExcelWriter(excel_path, mode='w', engine='openpyxl') as writer:
-            pd.DataFrame().to_excel(writer)
+            pd.DataFrame(columns=COLUMNS).to_excel(writer, sheet_name='Sheet1', index=False)
 
     with pd.ExcelWriter(excel_path, mode='a', engine='openpyxl', if_sheet_exists='overlay') as writer:
         df.to_excel(writer, sheet_name='Sheet1', startrow=writer.sheets['Sheet1'].max_row, index=False, header=False)
 
-# def collection_excel_local (info):
-#     excel_path = os.environ["EXCEL_PATH"]
-#     if not os.path.exists(excel_path):
+def format_excel_output(): 
+    excel_path = os.environ["EXCEL_PATH"]
 
-#         with pd.ExcelWriter(excel_path, mode='w', engine='openpyxl') as writer:
-#             pd.DataFrame().to_excel(writer)
+    wb = openpyxl.load_workbook(excel_path)
+    ws = wb["Sheet1"]
 
-#     with pd.ExcelWriter(excel_path, mode='a', engine='openpyxl', if_sheet_exists='overlay') as writer:
-#         info.to_excel(writer, sheet_name='Sheet1', startrow=writer.sheets['Sheet1'].max_row, index=False, header=False)
+    red_fill = openpyxl.styles.PatternFill(start_color='FFC7CE', end_color='FFC7CE', fill_type='solid') 
+    red_font = openpyxl.styles.Font(color='9C0006') 
+
+    for row in ws.iter_rows(min_row=2):
+        for cell in row:
+            if cell.value == "Bot_Holder" :
+                cell.fill = red_fill
+
+            elif cell.value == "Null": 
+                cell.value =" "
+
+            if cell.value == "REPLACE":
+                cell.font = red_font
+    wb.save(excel_path)
+
+# Pipeline to sharepoint???
 
 def channel_history(chan_id : str):
     try: 
@@ -103,30 +117,29 @@ def channel_history(chan_id : str):
     except FileNotFoundError:
         last_ts = 0
 
-
     user_map = create_user_map()
     cursor = None 
     all_files = []
     rows = []
 
-    column  =  ["Download_Date", "Purchase_Name", "Description", "Supplier", "Cost", "Message", "Purchaser","Receipt_Number", "Reimbursed"]
+    column  =  ["Download_Date", "Purchase_Name"," Purchase_Date","Description", "Supplier", "Cost", "Message", "Purchaser","Receipt_Number", "Reimbursed", "Error_Flag"]
     receipt_info = pd.DataFrame(columns=column)
     # receipt_info["Reimbursed"] = receipt_info["Reimbursed"].fillna("No")
 
-
     make_invoice = tracking_generator("R")
 
-
     defaults = {
-        "Download_Date" : "Bot_Holder", 
-        "Purchase_Name": "REPLACE", 
-        "Description": "REPLACE", 
-        "Supplier": "Bot_Holder", 
-        "Cost": "Bot_Holder", 
-        "Message": "Bot_Holder", 
-        "Purchaser": "Bot_Holder",
-        "Receipt_Number": "Bot_Holder", 
-        "Reimbursed": 'No' 
+        "Download_Date" : "Bot_Holder",  # for personal use
+        "Purchase_Name": "REPLACE",  # For internal and UOSU 
+        "Purchase_Date": "Bot_Holder",  # For internal and UOSU 
+        "Description": "REPLACE",  # UOSU 
+        "Supplier": "Bot_Holder", # UOSU
+        "Cost": "Bot_Holder",   # For internal and UOSU 
+        "Message": "Bot_Holder",  # For internal 
+        "Purchaser": "Bot_Holder", # For internal
+        "Receipt_Number": "Bot_Holder",  # For internal and UOSU 
+        "Reimbursed": 'No',  # For internal
+        "Error_Flag": 'Null' # For internal
     }
 
 
@@ -160,13 +173,11 @@ def channel_history(chan_id : str):
         file_name = f["name"]
         newest_ts = m.get("ts")
         
-
         url = f.get("url_private_download")       
         downloaded_path = DOWNLOAD_DIR / file_name
         download_files(url, downloaded_path)
 
         invoice_num, new_path = change_file_name(downloaded_path, DOWNLOAD_DIR, make_invoice)
-        
 
         info = {
             "Download_Date": datetime.fromtimestamp(float(m.get("ts"))).strftime("%Y-%m-%d"),
@@ -184,11 +195,8 @@ def channel_history(chan_id : str):
             json.dump({"last_ts": newest_ts},f)
 
         upload_collection_excel_local(row)
-
-
-    # rows will be the access point to the dataframe     
-    print(rows)
-
+        format_excel_output()
 
 if __name__ == "__main__":
     channel_history(CHANNEL_ID)
+    format_excel_output()

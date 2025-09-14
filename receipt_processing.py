@@ -1,9 +1,7 @@
-
-
 import re
 import cv2
 import os, pathlib
-
+import pandas as pd
 import numpy as np
 import pytesseract
 from pathlib import Path
@@ -23,6 +21,9 @@ DATE_PATTERNS: tuple[re.Pattern,...] = (
     re.compile(r"\d{2}/\d{2}/\d{2}"),
 )
 
+# This gets all the files that are in the directory
+#       - Need to create json date to read last file read
+#       - Check image file types as well
 def gather_picture_files(dir: pathlib.Path):
     receipt_list = []
 
@@ -41,14 +42,6 @@ class ReceiptOCR:
     cost_text : Optional[float] = field(init=False, default=None)
     text: Optional[str] = field(init=False,repr= False, default=None)
 
-    # receipt_path: Path
-    # config: str
-
-    # purchase_date: str | None = None
-    # supplier: str | None = None
-    # cost_text: str | None = None
-    # text: str = ""
-
     def __post_init__(self) -> None:
         try:
             img = cv2.imread(str(self.receipt_path))
@@ -63,10 +56,12 @@ class ReceiptOCR:
         # return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         grey = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
+        # Need to do more research on and find better methods of thresh holds
         den = cv2.medianBlur(grey, 3)
         _, th = cv2.threshold(den, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         return th
 
+    # Extracts the text values from the images
     def _extract_text(self, text: str) -> None:
         # clean the text - for line in text split and strip trail and return if not empty
         lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
@@ -75,7 +70,6 @@ class ReceiptOCR:
             self.supplier = lines[0]
 
         for line in lines:
-
             if "Total" in line.lower():
                 amount_pattern = r"\$?\s?\d[\d,]*\.?\d{0,2}"
                 match = re.search(amount_pattern, line)
@@ -86,9 +80,7 @@ class ReceiptOCR:
                     break
 
         for line in lines:
-
             for pattern in DATE_PATTERNS:
-
                 match = pattern.search(line)
                 if match:
                     self.purchase_date = match.group(0)
@@ -97,11 +89,11 @@ class ReceiptOCR:
             if self.purchase_date:
                 break
 
-# def process_receipt(receipt: Path, config: str = CONFIG1) -> ReceiptOCR:
-#     return ReceiptOCR(receipt_path=receipt, config=config)
-
+# wrapper to call dataclass easier
 def process_receipt(receipt: Path, config: str = CONFIG1) -> ReceiptOCR:
     return ReceiptOCR(receipt_path=receipt, config=config)
+
+
 if __name__ == "__main__":
     load_dotenv()
     download_dir = Path(os.environ["DOWNLOAD_LOC"])
@@ -114,21 +106,39 @@ if __name__ == "__main__":
     for receipt in receipts:
         rec = process_receipt(receipt, CONFIG1)
         rec2 = process_receipt(receipt, CONFIG2)
-        results_con_1[receipt.name] = {
+
+        results_con_1[receipt.stem] = {
             "Purchase_Date": rec.purchase_date,
             "Supplier": rec.supplier,
             "Cost": rec.cost_text or None,
         }
-        results_con_2[receipt.name] = {
+
+        results_con_2[receipt.stem] = {
             "Purchase_Date": rec2.purchase_date,
             "Supplier": rec2.supplier,
             "Cost": rec2.cost_text or None,
         }
 
+
+    def extracted_text_to_excel(text: str):
+
+        # will move this to the main app.py file
+        excel_path = os.environ["EXCEL_FILE"]
+        if not os.path.exists(excel_path):
+            print(f"File not found: {excel_path}")
+
+        with pd.read_excel(excel_path, sheet_name='Sheet1') as excel:
+            print(excel)
+
+
+
+
         # quick debug print
     for k, v in results_con_1.items():
         print(k, "→", v)
+
     print("\n")
+
     for k, v in results_con_2.items():
         print(k, "→", v)
 

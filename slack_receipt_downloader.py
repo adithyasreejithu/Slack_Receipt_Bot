@@ -15,7 +15,7 @@ download_loc = os.environ["DOWNLOAD_LOC"]
 client = WebClient(token=BOT_TOKEN)
 DOWNLOAD_DIR = pathlib.Path(download_loc)
 DOWNLOAD_DIR.mkdir(exist_ok=True)
-COLUMNS = ["Download_Date", "Purchase_Name"," Purchase_Date","Description", "Supplier", "Cost", "Message", "Purchaser","Receipt_Number", "Reimbursed", "Error_Flag"]
+COLUMNS = ["Download_Date", "Purchase_Name","Purchase_Date","Description", "Supplier", "Cost", "Message", "Purchaser","Receipt_Number", "Reimbursed", "Error_Flag"]
     
 # Call function to map users ID to name 
 def create_user_map() -> dict[str, str]: 
@@ -122,7 +122,7 @@ def channel_history(chan_id : str):
     all_files = []
     rows = []
 
-    column  =  ["Download_Date", "Purchase_Name"," Purchase_Date","Description", "Supplier", "Cost", "Message", "Purchaser","Receipt_Number", "Reimbursed", "Error_Flag"]
+    column  =  ["Download_Date", "Purchase_Name","Purchase_Date","Description", "Supplier", "Cost", "Message", "Purchaser","Receipt_Number", "Reimbursed", "Error_Flag"]
     receipt_info = pd.DataFrame(columns=column)
     # receipt_info["Reimbursed"] = receipt_info["Reimbursed"].fillna("No")
 

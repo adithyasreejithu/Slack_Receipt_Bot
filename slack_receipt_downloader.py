@@ -11,7 +11,7 @@ load_dotenv()   # This loads the env variables
 BOT_TOKEN = os.environ["SLACK_BOT_TOKEN"]   # API key for bot
 CHANNEL_ID = os.environ["CHANNEL_ID"] # Channel ID 
 download_loc = os.environ["DOWNLOAD_LOC"]
-
+JSON_FILE = os.environ["JSON_FILE"]
 client = WebClient(token=BOT_TOKEN)
 DOWNLOAD_DIR = pathlib.Path(download_loc)
 DOWNLOAD_DIR.mkdir(exist_ok=True)
@@ -113,7 +113,7 @@ def format_excel_output():
 
 def channel_history(chan_id : str):
     try: 
-        with open(".last_ts.json") as f : 
+        with open(JSON_FILE) as f :
             last_ts  = json.load(f)["last_ts"]
     except FileNotFoundError:
         last_ts = 0
@@ -192,7 +192,7 @@ def channel_history(chan_id : str):
 
         rows.append(row)
 
-        with open(".last_ts.json", "w") as f:
+        with open(JSON_FILE, "w") as f:
             json.dump({"last_ts": newest_ts},f)
 
         upload_collection_excel_local(row)

@@ -1,6 +1,6 @@
 import re
 import cv2
-import os, pathlib
+import os, pathlib, json
 import openpyxl
 import pandas as pd
 import numpy as np
@@ -11,7 +11,7 @@ from openpyxl import load_workbook
 from dataclasses import dataclass, field
 from typing import Optional, Iterable
 
-
+load_dotenv()
 CONFIG1 = r"--oem 3 --psm 6"
 CONFIG2 = r"--oem 1 --psm 6"
 
@@ -24,17 +24,34 @@ DATE_PATTERNS: tuple[re.Pattern,...] = (
 )
 
 PLACEHOLDERS = ['REPLACE', 'Bot_Holder']
+JSON_FILE = os.environ.get("JSON_FILE")
 
 # This gets all the files that are in the directory
 #       - Need to create json date to read last file read
 #       - Check image file types as well
+
 def gather_picture_files(dir: pathlib.Path):
     receipt_list = []
+    new_files = []
+    files_read = None
 
-    for file in dir.iterdir():
-        receipt_list.append(file)
+    try:
+        with open(JSON_FILE) as f:
+            files_read = json.load(f)["files_read"]
+    except KeyError:
+        print(f"[ERROR] File unable to find key")
+        files_read = []
 
-    return receipt_list
+    if files_read:
+        for file in dir.iterdir():
+            if str(file) not in files_read:
+                new_files.append(file)
+
+        return new_files
+    else:
+        for file in dir.iterdir():
+            receipt_list.append(file)
+        return receipt_list
 
 @dataclass(slots=False)
 class ReceiptOCR:
@@ -172,7 +189,14 @@ def combine_data_sources(ocr_data: dict):
 
     extracted_text_to_excel(merged_data)
 
+def upload_file_tracking(receipt: Path):
+    with open(JSON_FILE) as f:
+        files_read = json.load(f)['files_read']
 
+    files_read.append(str(receipt))
+
+    with open(JSON_FILE, 'w') as f:
+        json.dump({'files_read': files_read}, f,indent=2)
 
 if __name__ == "__main__":
     load_dotenv()
@@ -183,8 +207,11 @@ if __name__ == "__main__":
     results_con_2 : dict[str, dict[str, Optional[str]]] = {}
 
     for receipt in receipts:
+        # add try here to error catch in case of issues
         rec = process_receipt(receipt, CONFIG1)
         rec2 = process_receipt(receipt, CONFIG2)
+
+        upload_file_tracking(receipt)
 
         results_con_1[receipt.stem] = {
             "Purchase_Date": rec.purchase_date,

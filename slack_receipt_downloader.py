@@ -87,6 +87,7 @@ def upload_collection_excel_local (info: dict):
     with pd.ExcelWriter(excel_path, mode='a', engine='openpyxl', if_sheet_exists='overlay') as writer:
         df.to_excel(writer, sheet_name='Sheet1', startrow=writer.sheets['Sheet1'].max_row, index=False, header=False)
 
+# This can also be put in the main file as it can be reused
 def format_excel_output(): 
     excel_path = os.environ["EXCEL_PATH"]
 

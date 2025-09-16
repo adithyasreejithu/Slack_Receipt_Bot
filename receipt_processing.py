@@ -24,7 +24,7 @@ DATE_PATTERNS: tuple[re.Pattern,...] = (
 )
 
 PLACEHOLDERS = ['REPLACE', 'Bot_Holder']
-JSON_FILE = os.environ.get("JSON_FILE")
+TRACKING_JSON = os.environ.get("TRACKING_JSON")
 
 # This gets all the files that are in the directory
 #       - Need to create json date to read last file read
@@ -36,10 +36,10 @@ def gather_picture_files(dir: pathlib.Path):
     files_read = None
 
     try:
-        with open(JSON_FILE) as f:
+        with open('app_state.json') as f:
             files_read = json.load(f)["files_read"]
-    except KeyError:
-        print(f"[ERROR] File unable to find key")
+    except (KeyError, FileNotFoundError) as e:
+        print(f"[ERROR] {type(e).__name__}: {e}")
         files_read = []
 
     if files_read:
@@ -190,21 +190,63 @@ def combine_data_sources(ocr_data: dict):
     extracted_text_to_excel(merged_data)
 
 def upload_file_tracking(receipt: Path):
-    with open(JSON_FILE) as f:
-        files_read = json.load(f)['files_read']
+    try:
+        with open('app_state.json') as f:
+            files_read = json.load(f)['files_read']
+    except FileNotFoundError:
+        files_read = []
 
     files_read.append(str(receipt))
 
-    with open(JSON_FILE, 'w') as f:
+    with open("app_state.json", 'w') as f:
         json.dump({'files_read': files_read}, f,indent=2)
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
+#     load_dotenv()
+#     download_dir = Path(os.environ["DOWNLOAD_LOC"])
+#
+#     receipts = gather_picture_files(download_dir)
+#     results_con_1 : dict[str, dict[str, Optional[str]]] = {}
+#     results_con_2 : dict[str, dict[str, Optional[str]]] = {}
+#
+#     for receipt in receipts:
+#         # add try here to error catch in case of issues
+#         rec = process_receipt(receipt, CONFIG1)
+#         rec2 = process_receipt(receipt, CONFIG2)
+#
+#         upload_file_tracking(receipt)
+#
+#         results_con_1[receipt.stem] = {
+#             "Purchase_Date": rec.purchase_date,
+#             "Supplier": rec.supplier,
+#             "Cost": rec.cost_text or None,
+#         }
+#
+#         results_con_2[receipt.stem] = {
+#             "Purchase_Date": rec2.purchase_date,
+#             "Supplier": rec2.supplier,
+#             "Cost": rec2.cost_text or None,
+#         }
+#
+#     # right now only processes one but will need to look at results and find best one
+#     combine_data_sources(results_con_1)
+#
+#         # quick debug print
+#     for k, v in results_con_1.items():
+#         print(k, "→", v)
+#
+#     print("\n")
+#
+#     for k, v in results_con_2.items():
+#         print(k, "→", v)
+
+def receipt_ocr_pipline():
     load_dotenv()
     download_dir = Path(os.environ["DOWNLOAD_LOC"])
 
     receipts = gather_picture_files(download_dir)
-    results_con_1 : dict[str, dict[str, Optional[str]]] = {}
-    results_con_2 : dict[str, dict[str, Optional[str]]] = {}
+    results_con_1: dict[str, dict[str, Optional[str]]] = {}
+    results_con_2: dict[str, dict[str, Optional[str]]] = {}
 
     for receipt in receipts:
         # add try here to error catch in case of issues
@@ -228,7 +270,7 @@ if __name__ == "__main__":
     # right now only processes one but will need to look at results and find best one
     combine_data_sources(results_con_1)
 
-        # quick debug print
+    # quick debug print
     for k, v in results_con_1.items():
         print(k, "→", v)
 
@@ -237,5 +279,4 @@ if __name__ == "__main__":
     for k, v in results_con_2.items():
         print(k, "→", v)
 
-
-
+    print('end')
